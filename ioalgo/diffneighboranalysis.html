@@ -1,0 +1,238 @@
+
+<h1>
+    Diff neighbor analysis
+</h1>
+
+<h2>Understood Checklist</h2>
+<table>
+    <tr>
+        <th>status</th>
+        <th>operator</th>
+        <th>diffoperator</th>
+        <th>diffsetqty</th>
+        <th>notes</th>
+    </tr>
+    <tr>
+        <td>add</td>
+        <td>solved</td>
+        <td>( - ) sub</td>
+        <td>2</td>
+        <td>the opposite of sub</td>
+    </tr>
+    <tr>
+        <td>sub</td>
+        <td>solved</td>
+        <td>( - ) sub</td>
+        <td>2</td>
+        <td>the opposite of add</td>
+    </tr>
+    <tr>
+        <td>mul</td>
+        <td>solved</td>
+        <td>( - ) sub</td>
+        <td>2</td>
+        <td>2 dimensional addition</td>
+    </tr>
+    <tr>
+        <td>div</td>
+        <td>unsolved</td>
+        <td>BLANK</td>
+        <td>BLANK</td>
+    </tr>
+    <tr>
+        <td>pow</td>
+        <td>unsolved</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td></td>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
+
+<select id="diff-alg-selection"></select>
+<button onclick="populateTable()">Run Diff Alg</button>
+
+<button onclick="populateAllTableOperators()">Run All JS operators</button>
+
+<div id="diff-table"></div>
+
+
+
+<script src="./bitwisefuncs.js"></script>
+<script src="./comparisonfuncs.js"></script>
+<script src="./controlflowfuncs.js"></script>
+<script src="./mathfuncs.js"></script>
+<!-- <script src="./typefuncs.js"></script> -->
+
+
+
+<script src="./params.js"></script>
+
+
+
+<script>
+
+    let funcs = [
+        ...mathfuncs
+    ];
+
+    class IODIffs {
+        diffsarr = [];
+        clearresults(){
+            this.diffsarr = [];
+            return this;
+        }
+        diffneighboranalysis(inputL,outputL,diffsarr = this.diffsarr){
+            /**
+             * 
+             * keep in mind of order of precedence.
+             * 
+             * ................ the machine needs to come to these conclusion .....
+             * 
+             * +,-,*,\,pow    --- when evaluated by ( - ) last diffarr elem ends in 0.
+             * 
+             * >>, <<, when evaluated by ( - ) last diffarr elem ends in left hand value with multiples  
+             * 
+             * &&, ||, ^, when evaluated by ( - ) 
+             * 
+             * 
+             * 
+             */
+            let assessarr;
+            let diffresultarr = [];
+            if (diffsarr.length === 0) {
+                assessarr = outputL;
+                diffsarr.push(inputL, outputL);
+                // console.log(inputL);
+            } else {
+                assessarr = diffsarr[diffsarr.length - 1];
+            }
+
+            let zrocnt = 0;
+            assessarr.sort((a,b)=>{
+                let diffresult = a - b;                  // good for -,+,*,\,pow
+                // let diffresult = a & b;                  // produced zeros when used on bitshift operators
+                diffresultarr.push(diffresult)
+                if (0 === diffresult) zrocnt += 1;
+                return 0
+            });
+            diffsarr.push(diffresultarr);
+            if (zrocnt === (diffresultarr.length)) {        // UH OHOHOHOHOHOHOH, INFINITE LOOP IF NEVER EQUAL
+                return this;
+            } else {
+                return this.diffneighboranalysis(inputL,outputL,diffsarr)
+            }
+        }
+        graph(graphname){
+            let html = ``;
+
+            html += `<h1>${graphname}</h1>`;
+                html += `<div>`;
+                    this.diffsarr.forEach((diffarr)=>{
+                        html += `<div style="display: inline-block; position: relative; margin-right: 10px">`;
+                        diffarr.forEach((diffresult)=>{
+                            html += `<div style="display: block;">${diffresult}</div>`
+                        })
+                        html += `</div>`;
+                    })
+                html += `</div>`;
+            html += `<br>`.repeat(3);
+            document.getElementById("diff-table").innerHTML += html;
+ 
+            return this;
+        }
+    }
+
+
+    function populateTable(){
+
+        let inputL = [0,1,2,3,4,5,6,7,8,9];
+        let outputL = [1,2,3,4,5,6,7,8,9,10];
+
+
+
+        let iodiffs = new IODIffs();
+        iodiffs.diffneighboranalysis(inputL,outputL);
+        iodiffs.graph();
+        iodiffs.clearresults();
+    }
+
+    function populateAllTableOperators(){
+        let iodiffs = new IODIffs();
+
+        funcs.forEach((funcobj)=>{
+            let inputL = [];
+            let outputL = [];
+            paramLooper(funcobj.params,
+                (args)=>{
+                    inputL.push(args);
+                    outputL.push(funcobj.func(...args));
+                },
+                ()=>{
+                    // analyze ios
+                    iodiffs.diffneighboranalysis(inputL,outputL);
+                    // // graph
+                    iodiffs.graph(funcobj.func.name);
+                    // reset mem of context variables
+                    iodiffs.clearresults();
+                    inputL = [];
+                    outputL = [];
+                }
+            );
+            // console.log(inputL);
+        });
+ 
+    }
+
+    function paramLooper(params,cb0,cb1,args=[]){
+        let param0;
+        let param1;
+
+        if (params.length === 1) {
+            param0 = PARAMs[params.shift()];
+            for (let i = param0.i; i < param0.lim; i++) {
+                args = [];
+                args.push(i);
+                cb0(args)
+            }
+            cb1();
+        }
+        else if (params.length === 2) {
+            param0 = PARAMs[params.shift()];
+            param1 = PARAMs[params.shift()];
+            for (let i = param0.i; i < param0.lim; i++) {
+                for (let j = param1.i; j < param1.lim; j++) {
+                    args = [];
+                    args.push(i);
+                    args.push(j);
+                    cb0(args);
+                };
+                cb1();
+            };
+        }
+    }
+
+</script>
+
